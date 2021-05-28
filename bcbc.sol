@@ -4,6 +4,7 @@
 //
 // pragma solidity ^0.8.4;
 //.8.4 failed to compile because of a glitch with payable
+//Marek says as long as it works, its fine
 pragma solidity ^0.5.0;
 
 ///@dev creating the first contract, capable of 
@@ -31,12 +32,18 @@ contract BCBC {
         string description; //why not?
         address payable creator;
         //group types together to save on gas
-        // uint8 validateCounter; //how many checks
-        // uint8 killCounter; //how many [X] not valid!
+        uint8 validateCounter; //how many checks
+        uint8 killCounter; //how many [X] not valid!
         // //to prevent double voting, we need to keep track of who has validated
         // mapping(address => bool) addressVoted; //mapping to let us check/switch on vote
         // //i think might not need to to pass in any values; mappings' default to infinite keys and "false" 
     }
+    
+    //counter variable, shoutout to Marek from ETHWorks for the brilliant help
+    //this means: take the index/id (workoutCount) as key and the value is another mapping with the
+    //address of the voter and a true false value (see validateWorkout()) line ~161
+    //change this only when validateWorkout
+    mapping(uint => mapping(address => bool)) public idAddressVoted;
     
     //honestly not sure if the event needs to have all the exact parts of a Workout...
     //notice: the () not {} and , not ; 
@@ -46,10 +53,10 @@ contract BCBC {
         string hash, //stringy hash
         string title, //of course we need a non-empty title
         string description, //why not?
-        address payable creator //, dont forget 
+        address payable creator, //, dont forget 
         //group types together to save on gas
-        // uint8 validateCounter, //how many checks
-        // uint8 killCounter, //how many [X] not valid!
+        uint8 validateCounter, //how many checks
+        uint8 killCounter //, //how many [X] not valid!
         // //to prevent double voting, we need to keep track of who has validated
         // mapping(address => bool) addressVoted //mapping to let us check/switch on vote
     );
@@ -61,9 +68,9 @@ contract BCBC {
         string hash, 
         string title, 
         string description, 
-        address payable creator //,
-        // uint8 validateCounter,
-        // uint8 killCounter, 
+        address payable creator, //,
+        uint8 validateCounter,
+        uint8 killCounter //, 
         // mapping(address => bool) addressVoted
         //again not too sure why we need to emit all this stuff...
     );
@@ -72,6 +79,7 @@ contract BCBC {
     constructor (string memory _challengeWords) public {
         coach = msg.sender;
         challengeWords = _challengeWords;
+        //the creator of the contract is the coach and the coach creates the challenge words
     }
     
     
@@ -103,9 +111,9 @@ contract BCBC {
         //to create a new Workout, be 100% to pass in the parameters in the exactly right order
         //see line 21
         //didn't pass in anything for the mapping
-        workouts[workoutCount] = Workout(workoutCount, 0, _videoHash, _title, _description, msg.sender);//, 0, 0)
+        workouts[workoutCount] = Workout(workoutCount, 0, _videoHash, _title, _description, msg.sender, 0, 0);//, 0, 0)
         // Trigger an event (emitting with exactly the same values as above)
-        emit WorkoutCreated(workoutCount, 0, _videoHash, _title, _description, msg.sender);//, 0, 0);
+        emit WorkoutCreated(workoutCount, 0, _videoHash, _title, _description, msg.sender, 0, 0);//, 0, 0);
     }
 
     //tip images of valid workout id
@@ -139,16 +147,51 @@ contract BCBC {
           _workout.hash, 
           _workout.title, 
           _workout.description, 
-          _creator);
+          _creator,
+          _workout.validateCounter, 
+          _workout.killCounter 
+          );
      //    emit ImageTipped(_image.hash, _image.description, _id, _image.tipAmount, _author);
 
     }
     
-    // /@notice return all of the created PortfolioProjects at once
-    function getChallengeWords() public view returns (string memory) {
-        return challengeWords;
-    }
+    //this was necessary back when challengeWords was an array of strings (woops!)
+    //strings in soliditity are already an array
+    // // /@notice return all of the ___ at once
+    // function getChallengeWords() public view returns (string memory) {
+    //     return challengeWords;
+    // }
     
+    
+    function validateWorkout(uint _id) public {
+    ///@learn "storage" we want to manipulate the copy of struct thats in storage
+        Workout storage workout = workouts[_id];
+        // /@notice we are making sure the caller of func is not the creator
+        // /@dev requirements can appear wherever you want in a function, isn't that nice? feel free to blockroad
+       
+        //***ERROR*** TypeError: Operator != not compatible with types address payable and address payable[1] memory
+        // Marek noticed my stupid typo: [msg.sender] 
+        require(workout.creator != msg.sender);
+        // /@param: at the index in the requests struct, check if addressVoted for the message.sender is 
+        // /@dev !TRUE =not true
+        
+        //***ERROR*** cannot save a mapping inside a struct?
+        //correct, though the explaination is outside the scope of the comments section
+        // https://www.reddit.com/r/ethdev/comments/lr0f26/struct_containing_a_nested_mapping_cannot_be/
+        //https://medium.com/coinmonks/solidity-tutorial-all-about-mappings-29a12269ee14
+        // require(!workout.addressVoted[msg.sender]);
+        //if i'm right, this requires FALSE for the mapping at _id[address of the msg.sender]
+        require(!idAddressVoted[_id][msg.sender]);
+        
+        //***ERROR*** cannot save a mapping inside a struct?
+        // /@notice preventing double voting
+        // workout.addressVoted[msg.sender] = true;
+        idAddressVoted[_id][msg.sender] = true;
+        
+        // /@notice increments the counter for this workout, towards eventual threshold?
+        workout.validateCounter++;
+        
+    }
     
     //thats it for the MVP of bcbc i think.
 }
