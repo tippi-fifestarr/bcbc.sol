@@ -11,7 +11,9 @@ contract BCBC {
     //contract begins with allocating memory and variables
     //keep track of all created workouts
     //strings in an array, filled in when constructing contract
-    string[] public challengeWords;
+    string public challengeWords;
+    //constructor function will assign me(msg.sender) to this var
+    address public coach;
     
     //store videos
     //map the index (videocount) of the workout struct
@@ -65,6 +67,13 @@ contract BCBC {
         // mapping(address => bool) addressVoted
         //again not too sure why we need to emit all this stuff...
     );
+    
+    //day2, realized i forgot a constructor function to create the challenge words string
+    constructor (string memory _challengeWords) public {
+        coach = msg.sender;
+        challengeWords = _challengeWords;
+    }
+    
     
     ///@dev possibly unnecessary?
     //mapping of killed workouts (MVP lets say recieving 3 X votes)
@@ -133,6 +142,11 @@ contract BCBC {
           _creator);
      //    emit ImageTipped(_image.hash, _image.description, _id, _image.tipAmount, _author);
 
+    }
+    
+    // /@notice return all of the created PortfolioProjects at once
+    function getChallengeWords() public view returns (string memory) {
+        return challengeWords;
     }
     
     
